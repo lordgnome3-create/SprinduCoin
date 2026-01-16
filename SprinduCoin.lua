@@ -1,153 +1,400 @@
--- =====================================
--- Sprindu Coin - Turtle WoW (1.12.1)
--- =====================================
+-----------------------------------
+-- SpringduCoin
+-----------------------------------
+SpringduCoin = {}
+SpringduCoin.coins = {}
 
--- Initialize SavedVariables
-if not SprinduCoinDB then
-    SprinduCoinDB = {
-        balances = {},
-        distributors = {}
-    }
+-----------------------------------
+-- Saved Variables
+-----------------------------------
+local function LoadData()
+    if SpringduCoinDB then
+        SpringduCoin.coins = SpringduCoinDB
+    end
 end
 
--- =====================================
+local function SaveData()
+    SpringduCoinDB = SpringduCoin.coins
+end
+
+-----------------------------------
 -- Utility Functions
--- =====================================
-
-local function PlayerName()
-    return UnitName("player")
-end
-
--- Vanilla-safe Guild Master check
-local function IsGuildMaster()
-    if not IsInGuild() then return false end
-    local name, rank, rankIndex = GetGuildInfo("player")
-    return rankIndex == 0
-end
-
-local function IsDistributor()
-    return IsGuildMaster() or SprinduCoinDB.distributors[PlayerName()]
-end
-
-local function AddCoins(player, amount)
-    SprinduCoinDB.balances[player] = (SprinduCoinDB.balances[player] or 0) + amount
-end
-
-local function GetBalance(player)
-    return SprinduCoinDB.balances[player] or 0
-end
-
--- =====================================
--- Popup Menu
--- =====================================
-
-StaticPopupDialogs["SPRINDU_COIN_MENU"] = {
-    text = "Sprindu Coin Menu",
-    button1 = "OK",
-    timeout = 0,
-    whileDead = 1,
-    hideOnEscape = 1,
-    OnAccept = function()
-        print("|cff00ff00Sprindu Coin Commands:|r")
-        print("/sprindu give <player> <amount>")
-        print("/sprindu balance [player]")
-        print("/sprindu authorize <player>  (Guild Master)")
-        print("/sprindu revoke <player>     (Guild Master)")
+-----------------------------------
+local function GetCoins(name)
+    if not SpringduCoin.coins[name] then
+        SpringduCoin.coins[name] = 0
     end
-}
+    return SpringduCoin.coins[name]
+end
 
--- =====================================
--- Slash Commands
--- =====================================
+local function AddCoins(name, amount)
+    SpringduCoin.coins[name] = GetCoins(name) + amount
+    SaveData()
+end
 
-SLASH_SPRINDU1 = "/sprindu"
-SlashCmdList["SPRINDU"] = function(msg)
-    local args = {}
-    for word in string.gfind(msg, "%S+") do
-        table.insert(args, word)
-    end
+local function RemoveCoins(name, amount)
+    local newValue = GetCoins(name) - amount
+    if newValue < 0 then newValue = 0 end
+    SpringduCoin.coins[name] = newValue
+    SaveData()
+end
 
-    local cmd = args[1]
+-----------------------------------
+-- Main Frame
+-----------------------------------
+local frame = CreateFrame("Frame", "SpringduCoinFrame", UIParent)
+frame:SetWidth(420)
+frame:SetHeight(550)
+frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+frame:SetBackdrop({
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true, tileSize = 32, edgeSize = 32,
+    insets = { left = 8, right = 8, top = 8, bottom = 8 }
+})
+frame:SetMovable(true)
+frame:EnableMouse(true)
+frame:RegisterForDrag("LeftButton")
+frame:SetScript("OnDragStart", function() frame:StartMoving() end)
+frame:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
+frame:Hide()
 
-    -- Open menu
-    if cmd == "menu" or cmd == nil then
-        StaticPopup_Show("SPRINDU_COIN_MENU")
-        return
-    end
 
-    -- Give coins
-    if cmd == "give" then
-        if not IsDistributor() then
-            print("|cffff0000You are not authorized to give Sprindu Coins.|r")
-            return
+-----------------------------------
+-- Title
+-----------------------------------
+local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+title:SetPoint("TOP", 0, -12)
+title:SetText("Springdu Coin")
+
+-----------------------------------
+-- Close Button
+-----------------------------------
+local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+close:SetPoint("TOPRIGHT", -5, -5)
+
+-----------------------------------
+-- Player Selection (Simple Text + Buttons)
+-----------------------------------
+local selectedPlayer = nil
+
+local playerLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+playerLabel:SetPoint("TOPLEFT", 20, -50)
+playerLabel:SetText("Player:")
+
+local playerText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+playerText:SetPoint("LEFT", playerLabel, "RIGHT", 10, 0)
+playerText:SetText("None Selected")
+
+local function GetPlayerList()
+    local list = {}
+
+    if GetNumRaidMembers() > 0 then
+        for i = 1, GetNumRaidMembers() do
+            local name = GetRaidRosterInfo(i)
+            if name then
+                table.insert(list, name)
+            end
         end
 
-        local target = args[2]
-        local amount = tonumber(args[3])
-
-        if not target or not amount or amount <= 0 then
-            print("Usage: /sprindu give <player> <amount>")
-            return
+    elseif GetNumPartyMembers() > 0 then
+        local pname = UnitName("player")
+        if pname then
+            table.insert(list, pname)
         end
 
-        AddCoins(target, amount)
-        print("|cff00ff00Gave|r", amount, "Sprindu Coins to", target)
-        return
-    end
-
-    -- Check balance
-    if cmd == "balance" then
-        local target = args[2] or PlayerName()
-        print(target .. " has " .. GetBalance(target) .. " Sprindu Coins")
-        return
-    end
-
-    -- Authorize distributor
-    if cmd == "authorize" then
-        if not IsGuildMaster() then
-            print("|cffff0000Only the Guild Master can authorize distributors.|r")
-            return
+        for i = 1, GetNumPartyMembers() do
+            local member = UnitName("party"..i)
+            if member then
+                table.insert(list, member)
+            end
         end
 
-        local target = args[2]
-        if not target then
-            print("Usage: /sprindu authorize <player>")
-            return
+    elseif IsInGuild() then
+        for i = 1, GetNumGuildMembers() do
+            local gname = GetGuildRosterInfo(i)
+            if gname then
+                table.insert(list, gname)
+            end
         end
-
-        SprinduCoinDB.distributors[target] = true
-        print(target .. " is now authorized to give Sprindu Coins")
-        return
     end
 
-    -- Revoke distributor
-    if cmd == "revoke" then
-        if not IsGuildMaster() then
-            print("|cffff0000Only the Guild Master can revoke distributors.|r")
-            return
-        end
-
-        local target = args[2]
-        SprinduCoinDB.distributors[target] = nil
-        print(target .. " is no longer authorized")
-        return
-    end
-
-    -- Help
-    print("|cff00ff00Sprindu Coin Commands:|r")
-    print("/sprindu menu")
-    print("/sprindu give <player> <amount>")
-    print("/sprindu balance [player]")
-    print("/sprindu authorize <player>")
-    print("/sprindu revoke <player>")
+    return list
 end
 
--- =====================================
--- Load Event
--- =====================================
+local playerListFrame = CreateFrame("Frame", "SDC_PlayerList", frame)
+playerListFrame:SetWidth(200)
+playerListFrame:SetHeight(150)
+playerListFrame:SetPoint("TOPLEFT", 20, -80)
+playerListFrame:SetBackdrop({
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true, tileSize = 16, edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+})
+playerListFrame:Hide()
 
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("ADDON_LOADED")
-frame:SetScript("OnEvent", function()
-    print("|cff00ff00Sprindu Coin loaded for Turtle WoW.|r")
+local playerButtons = {}
+for i = 1, 10 do
+    local btn = CreateFrame("Button", "SDC_PlayerBtn"..i, playerListFrame)
+    btn:SetWidth(180)
+    btn:SetHeight(20)
+    btn:SetPoint("TOPLEFT", 10, -10 - (i-1)*20)
+    
+    local btnText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    btnText:SetPoint("LEFT", 5, 0)
+    btn.text = btnText
+    
+    btn:SetScript("OnClick", function()
+        selectedPlayer = this.text:GetText()
+        playerText:SetText(selectedPlayer)
+        playerListFrame:Hide()
+    end)
+    
+    btn:Hide()
+    playerButtons[i] = btn
+end
+
+local selectPlayerBtn = CreateFrame("Button", "SDC_SelectPlayer", frame, "UIPanelButtonTemplate")
+selectPlayerBtn:SetWidth(100)
+selectPlayerBtn:SetHeight(22)
+selectPlayerBtn:SetPoint("LEFT", playerText, "RIGHT", 10, 0)
+selectPlayerBtn:SetText("Select")
+
+selectPlayerBtn:SetScript("OnClick", function()
+    if playerListFrame:IsShown() then
+        playerListFrame:Hide()
+    else
+        local players = GetPlayerList()
+        for i = 1, 10 do
+            if i <= table.getn(players) then
+                playerButtons[i].text:SetText(players[i])
+                playerButtons[i]:Show()
+            else
+                playerButtons[i]:Hide()
+            end
+        end
+        playerListFrame:Show()
+    end
+end)
+
+-----------------------------------
+-- Amount Box
+-----------------------------------
+local amountLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+amountLabel:SetPoint("TOPLEFT", 20, -410)
+amountLabel:SetText("Amount:")
+
+local amountBox = CreateFrame("EditBox", "SDC_AmountBox", frame, "InputBoxTemplate")
+amountBox:SetWidth(60)
+amountBox:SetHeight(20)
+amountBox:SetPoint("LEFT", amountLabel, "RIGHT", 10, 0)
+amountBox:SetAutoFocus(false)
+amountBox:SetNumeric(true)
+amountBox:SetText("1")
+
+-----------------------------------
+-- Top 15 List
+-----------------------------------
+local top15Label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+top15Label:SetPoint("TOPLEFT", 240, -50)
+top15Label:SetText("Top 15 Players")
+
+local top15Frame = CreateFrame("Frame", "SDC_Top15Frame", frame)
+top15Frame:SetWidth(160)
+top15Frame:SetHeight(320)
+top15Frame:SetPoint("TOPLEFT", 240, -75)
+top15Frame:SetBackdrop({
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true, tileSize = 16, edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+})
+
+local top15Lines = {}
+for i = 1, 15 do
+    local line = top15Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    line:SetPoint("TOPLEFT", 8, -8 - (i-1)*20)
+    line:SetText("")
+    line:SetJustifyH("LEFT")
+    top15Lines[i] = line
+end
+
+local function UpdateTop15()
+    local list = {}
+    for name, coins in pairs(SpringduCoin.coins) do
+        if type(coins) == "number" then
+            table.insert(list, {name=name, coins=coins})
+        end
+    end
+    
+    table.sort(list, function(a,b) 
+        if type(a.coins) == "number" and type(b.coins) == "number" then
+            return a.coins > b.coins
+        end
+        return false
+    end)
+    
+    for i = 1, 15 do
+        if i <= table.getn(list) then
+            top15Lines[i]:SetText(i..". "..list[i].name.." - "..list[i].coins)
+        else
+            top15Lines[i]:SetText("")
+        end
+    end
+end
+
+-- Call UpdateTop15 initially
+UpdateTop15()
+
+-----------------------------------
+-- Status Text
+-----------------------------------
+local statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+statusText:SetPoint("TOPLEFT", 20, -440)
+statusText:SetText("")
+
+-----------------------------------
+-- Add / Remove Buttons
+-----------------------------------
+local addBtn = CreateFrame("Button", "SDC_AddBtn", frame, "UIPanelButtonTemplate")
+addBtn:SetWidth(80)
+addBtn:SetHeight(22)
+addBtn:SetPoint("TOPLEFT", 20, -460)
+addBtn:SetText("Add")
+
+addBtn:SetScript("OnClick", function()
+    if selectedPlayer then
+        local amt = tonumber(amountBox:GetText()) or 0
+        AddCoins(selectedPlayer, amt)
+        statusText:SetText(selectedPlayer.." has "..GetCoins(selectedPlayer).." (+ "..amt..")")
+        UpdateTop15()
+    else
+        statusText:SetText("Please select a player first")
+    end
+end)
+
+local removeBtn = CreateFrame("Button", "SDC_RemoveBtn", frame, "UIPanelButtonTemplate")
+removeBtn:SetWidth(80)
+removeBtn:SetHeight(22)
+removeBtn:SetPoint("LEFT", addBtn, "RIGHT", 10, 0)
+removeBtn:SetText("Remove")
+
+removeBtn:SetScript("OnClick", function()
+    if selectedPlayer then
+        local amt = tonumber(amountBox:GetText()) or 0
+        RemoveCoins(selectedPlayer, amt)
+        statusText:SetText(selectedPlayer.." has "..GetCoins(selectedPlayer).." (- "..amt..")")
+        UpdateTop15()
+    else
+        statusText:SetText("Please select a player first")
+    end
+end)
+
+-----------------------------------
+-- Chat Target Selection
+-----------------------------------
+local chatTarget = "GUILD"
+
+local chatLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+chatLabel:SetPoint("LEFT", removeBtn, "RIGHT", 20, 0)
+chatLabel:SetText("Chat:")
+
+local chatText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+chatText:SetPoint("LEFT", chatLabel, "RIGHT", 5, 0)
+chatText:SetText("GUILD")
+
+local chatBtn = CreateFrame("Button", "SDC_ChatBtn", frame, "UIPanelButtonTemplate")
+chatBtn:SetWidth(70)
+chatBtn:SetHeight(22)
+chatBtn:SetPoint("LEFT", chatText, "RIGHT", 5, 0)
+chatBtn:SetText("Change")
+
+local chatIndex = 1
+local chatChannels = { "GUILD", "PARTY", "RAID" }
+
+chatBtn:SetScript("OnClick", function()
+    chatIndex = chatIndex + 1
+    if chatIndex > table.getn(chatChannels) then
+        chatIndex = 1
+    end
+    chatTarget = chatChannels[chatIndex]
+    chatText:SetText(chatTarget)
+end)
+
+-----------------------------------
+-- Top 10 Button
+-----------------------------------
+local topBtn = CreateFrame("Button", "SDC_TopBtn", frame, "UIPanelButtonTemplate")
+topBtn:SetWidth(120)
+topBtn:SetHeight(22)
+topBtn:SetPoint("TOP", 0, -520)
+topBtn:SetText("Say Top 10")
+
+topBtn:SetScript("OnClick", function()
+    local list = {}
+    for name, coins in pairs(SpringduCoin.coins) do
+        if type(coins) == "number" then
+            table.insert(list, {name=name, coins=coins})
+        end
+    end
+
+    table.sort(list, function(a,b) 
+        if type(a.coins) == "number" and type(b.coins) == "number" then
+            return a.coins > b.coins
+        end
+        return false
+    end)
+
+    SendChatMessage("Top Springdu Coin Holders:", chatTarget)
+
+    local maxEntries = 10
+    if table.getn(list) < 10 then maxEntries = table.getn(list) end
+
+    for i = 1, maxEntries do
+        SendChatMessage(i..". "..list[i].name.." - "..list[i].coins, chatTarget)
+    end
+end)
+
+-----------------------------------
+-- Minimap Button
+-----------------------------------
+local mini = CreateFrame("Button", "SDC_MinimapButton", Minimap)
+mini:SetWidth(32)
+mini:SetHeight(32)
+mini:SetPoint("TOPLEFT", Minimap, "TOPLEFT", -10, 10)
+mini:SetNormalTexture("Interface\\Icons\\INV_Misc_Coin_01")
+mini:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+mini:SetScript("OnClick", function()
+    if frame:IsShown() then
+        frame:Hide()
+    else
+        frame:Show()
+    end
+end)
+
+-----------------------------------
+-- Slash Command
+-----------------------------------
+SLASH_SPRINGDUCOIN1 = "/sdc"
+SlashCmdList["SPRINGDUCOIN"] = function(msg)
+    if msg == "show" then
+        frame:Show()
+    end
+end
+
+-----------------------------------
+-- Event Handler for Loading Data
+-----------------------------------
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_LOGOUT")
+eventFrame:SetScript("OnEvent", function()
+    if event == "ADDON_LOADED" and arg1 == "SpringduCoin" then
+        LoadData()
+        UpdateTop15()
+    elseif event == "PLAYER_LOGOUT" then
+        SaveData()
+    end
 end)
