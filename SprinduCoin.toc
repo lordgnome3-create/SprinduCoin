@@ -1,0 +1,8 @@
+## Interface: 11200
+## Title: Sprindu Coin
+## Notes: Virtual guild currency system (Turtle WoW)
+## Author: You
+## Version: 1.0
+## SavedVariables: SprinduCoinDB
+
+SprinduCoin.lua
