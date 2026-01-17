@@ -552,6 +552,7 @@ chatBtn:SetScript("OnClick", function()
     end
     chatTarget = chatChannels[chatIndex]
     chatText:SetText(chatTarget)
+    DEFAULT_CHAT_FRAME:AddMessage("Chat channel changed to: "..chatTarget)
 end)
 
 -----------------------------------
