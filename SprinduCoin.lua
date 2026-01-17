@@ -555,6 +555,17 @@ mini:SetScript("OnClick", function()
     end
 end)
 
+mini:SetScript("OnEnter", function()
+    GameTooltip:SetOwner(this, "ANCHOR_LEFT")
+    GameTooltip:SetText("SprinduCoin", 1, 1, 1)
+    GameTooltip:AddLine("The only accepted coin of the village springdu", nil, nil, nil, 1)
+    GameTooltip:Show()
+end)
+
+mini:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+end)
+
 -----------------------------------
 -- Slash Command
 -----------------------------------
