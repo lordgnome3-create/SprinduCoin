@@ -463,12 +463,73 @@ removeBtn:SetScript("OnClick", function()
 end)
 
 -----------------------------------
+-- Add/Announce & Remove/Announce Buttons
+-----------------------------------
+local addAnnounceBtn = CreateFrame("Button", "SC_AddAnnounceBtn", frame, "UIPanelButtonTemplate")
+addAnnounceBtn:SetWidth(100)
+addAnnounceBtn:SetHeight(22)
+addAnnounceBtn:SetPoint("TOPLEFT", addBtn, "BOTTOMLEFT", 0, -5)
+addAnnounceBtn:SetText("Add/Announce")
+
+addAnnounceBtn:SetScript("OnClick", function()
+    if selectedPlayer then
+        local amt = tonumber(amountBox:GetText()) or 0
+        AddCoins(selectedPlayer, amt)
+        statusText:SetText(selectedPlayer.." has "..GetCoins(selectedPlayer).." (+ "..amt..")")
+        UpdateTop15()
+        
+        -- Announce to chat
+        local message = selectedPlayer.." has gained "..amt.." SprinduCoin"
+        if chatTarget == "WHISPER" then
+            if SprinduCoin.lastWhisper and SprinduCoin.lastWhisper ~= "" then
+                SendChatMessage(message, "WHISPER", nil, SprinduCoin.lastWhisper)
+            else
+                statusText:SetText("No whisper target set")
+            end
+        else
+            SendChatMessage(message, chatTarget)
+        end
+    else
+        statusText:SetText("Please select a player first")
+    end
+end)
+
+local removeAnnounceBtn = CreateFrame("Button", "SC_RemoveAnnounceBtn", frame, "UIPanelButtonTemplate")
+removeAnnounceBtn:SetWidth(100)
+removeAnnounceBtn:SetHeight(22)
+removeAnnounceBtn:SetPoint("LEFT", addAnnounceBtn, "RIGHT", 10, 0)
+removeAnnounceBtn:SetText("Remove/Announce")
+
+removeAnnounceBtn:SetScript("OnClick", function()
+    if selectedPlayer then
+        local amt = tonumber(amountBox:GetText()) or 0
+        RemoveCoins(selectedPlayer, amt)
+        statusText:SetText(selectedPlayer.." has "..GetCoins(selectedPlayer).." (- "..amt..")")
+        UpdateTop15()
+        
+        -- Announce to chat
+        local message = selectedPlayer.." has lost "..amt.." SprinduCoin"
+        if chatTarget == "WHISPER" then
+            if SprinduCoin.lastWhisper and SprinduCoin.lastWhisper ~= "" then
+                SendChatMessage(message, "WHISPER", nil, SprinduCoin.lastWhisper)
+            else
+                statusText:SetText("No whisper target set")
+            end
+        else
+            SendChatMessage(message, chatTarget)
+        end
+    else
+        statusText:SetText("Please select a player first")
+    end
+end)
+
+-----------------------------------
 -- Chat Target Selection
 -----------------------------------
 local chatTarget = "GUILD"
 
 local chatLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-chatLabel:SetPoint("LEFT", removeBtn, "RIGHT", 20, 0)
+chatLabel:SetPoint("TOPLEFT", addAnnounceBtn, "BOTTOMLEFT", 0, -15)
 chatLabel:SetText("Chat:")
 
 local chatText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -478,7 +539,7 @@ chatText:SetText("GUILD")
 local chatBtn = CreateFrame("Button", "SC_ChatBtn", frame, "UIPanelButtonTemplate")
 chatBtn:SetWidth(70)
 chatBtn:SetHeight(22)
-chatBtn:SetPoint("LEFT", chatText, "RIGHT", 5, 0)
+chatBtn:SetPoint("TOPLEFT", addAnnounceBtn, "BOTTOMLEFT", 0, -10)
 chatBtn:SetText("Change")
 
 local chatIndex = 1
