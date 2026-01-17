@@ -529,7 +529,7 @@ end)
 local chatTarget = "GUILD"
 
 local chatLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-chatLabel:SetPoint("TOPLEFT", addAnnounceBtn, "BOTTOMLEFT", 0, -15)
+chatLabel:SetPoint("LEFT", removeBtn, "RIGHT", 20, 0)
 chatLabel:SetText("Chat:")
 
 local chatText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -539,7 +539,7 @@ chatText:SetText("GUILD")
 local chatBtn = CreateFrame("Button", "SC_ChatBtn", frame, "UIPanelButtonTemplate")
 chatBtn:SetWidth(70)
 chatBtn:SetHeight(22)
-chatBtn:SetPoint("TOPLEFT", addAnnounceBtn, "BOTTOMLEFT", 0, -10)
+chatBtn:SetPoint("LEFT", chatText, "RIGHT", 5, 0)
 chatBtn:SetText("Change")
 
 local chatIndex = 1
