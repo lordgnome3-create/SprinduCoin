@@ -3,6 +3,7 @@
 -----------------------------------
 SprinduCoin = {}
 SprinduCoin.coins = {}
+SprinduCoin.lastWhisper = nil
 
 -----------------------------------
 -- Saved Variables
@@ -88,43 +89,111 @@ playerText:SetText("None Selected")
 
 local function GetPlayerList()
     local list = {}
+    
+    -- First, add all players who have coins
+    for name, coins in pairs(SprinduCoin.coins) do
+        if type(coins) == "number" and coins > 0 then
+            table.insert(list, name)
+        end
+    end
 
+    -- Add friends list
+    for i = 1, GetNumFriends() do
+        local fname = GetFriendInfo(i)
+        if fname then
+            local alreadyInList = false
+            for j = 1, table.getn(list) do
+                if list[j] == fname then
+                    alreadyInList = true
+                    break
+                end
+            end
+            if not alreadyInList then
+                table.insert(list, fname)
+            end
+        end
+    end
+
+    -- Add guild members
+    if IsInGuild() then
+        for i = 1, GetNumGuildMembers() do
+            local gname = GetGuildRosterInfo(i)
+            if gname then
+                local alreadyInList = false
+                for j = 1, table.getn(list) do
+                    if list[j] == gname then
+                        alreadyInList = true
+                        break
+                    end
+                end
+                if not alreadyInList then
+                    table.insert(list, gname)
+                end
+            end
+        end
+    end
+
+    -- Add players from raid
     if GetNumRaidMembers() > 0 then
         for i = 1, GetNumRaidMembers() do
             local name = GetRaidRosterInfo(i)
             if name then
-                table.insert(list, name)
+                local alreadyInList = false
+                for j = 1, table.getn(list) do
+                    if list[j] == name then
+                        alreadyInList = true
+                        break
+                    end
+                end
+                if not alreadyInList then
+                    table.insert(list, name)
+                end
             end
         end
 
     elseif GetNumPartyMembers() > 0 then
+        -- Add yourself
         local pname = UnitName("player")
         if pname then
-            table.insert(list, pname)
+            local alreadyInList = false
+            for j = 1, table.getn(list) do
+                if list[j] == pname then
+                    alreadyInList = true
+                    break
+                end
+            end
+            if not alreadyInList then
+                table.insert(list, pname)
+            end
         end
 
+        -- Add party members
         for i = 1, GetNumPartyMembers() do
             local member = UnitName("party"..i)
             if member then
-                table.insert(list, member)
-            end
-        end
-
-    elseif IsInGuild() then
-        for i = 1, GetNumGuildMembers() do
-            local gname = GetGuildRosterInfo(i)
-            if gname then
-                table.insert(list, gname)
+                local alreadyInList = false
+                for j = 1, table.getn(list) do
+                    if list[j] == member then
+                        alreadyInList = true
+                        break
+                    end
+                end
+                if not alreadyInList then
+                    table.insert(list, member)
+                end
             end
         end
     end
+    
+    -- Sort the list alphabetically
+    table.sort(list)
 
     return list
 end
 
 local playerListFrame = CreateFrame("Frame", "SC_PlayerList", frame)
 playerListFrame:SetWidth(200)
-playerListFrame:SetHeight(150)
+playerListFrame:SetHeight(200)
 playerListFrame:SetPoint("TOPLEFT", 20, -80)
 playerListFrame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -134,25 +203,86 @@ playerListFrame:SetBackdrop({
 })
 playerListFrame:Hide()
 
+-- Scroll frame
+local scrollFrame = CreateFrame("ScrollFrame", "SC_PlayerScrollFrame", playerListFrame)
+scrollFrame:SetWidth(170)
+scrollFrame:SetHeight(180)
+scrollFrame:SetPoint("TOPLEFT", 10, -10)
+
+-- Scroll child (content frame)
+local scrollChild = CreateFrame("Frame", "SC_PlayerScrollChild", scrollFrame)
+scrollChild:SetWidth(170)
+scrollChild:SetHeight(1)
+scrollFrame:SetScrollChild(scrollChild)
+
+-- Scroll bar
+local scrollBar = CreateFrame("Slider", "SC_PlayerScrollBar", scrollFrame)
+scrollBar:SetPoint("TOPRIGHT", playerListFrame, "TOPRIGHT", -5, -15)
+scrollBar:SetPoint("BOTTOMRIGHT", playerListFrame, "BOTTOMRIGHT", -5, 15)
+scrollBar:SetWidth(16)
+scrollBar:SetBackdrop({
+    bgFile = "Interface\\Buttons\\UI-SliderBar-Background",
+    edgeFile = "Interface\\Buttons\\UI-SliderBar-Border",
+    tile = true, tileSize = 8, edgeSize = 8,
+    insets = { left = 3, right = 3, top = 6, bottom = 6 }
+})
+scrollBar:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+scrollBar:SetMinMaxValues(0, 1)
+scrollBar:SetValueStep(1)
+scrollBar:SetValue(0)
+scrollBar:SetScript("OnValueChanged", function()
+    scrollFrame:SetVerticalScroll(this:GetValue())
+end)
+
 local playerButtons = {}
-for i = 1, 10 do
-    local btn = CreateFrame("Button", "SC_PlayerBtn"..i, playerListFrame)
-    btn:SetWidth(180)
-    btn:SetHeight(20)
-    btn:SetPoint("TOPLEFT", 10, -10 - (i-1)*20)
+local allPlayerNames = {}
+
+local function UpdatePlayerList()
+    -- Clear old buttons
+    for i = 1, table.getn(playerButtons) do
+        playerButtons[i]:Hide()
+    end
     
-    local btnText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    btnText:SetPoint("LEFT", 5, 0)
-    btn.text = btnText
+    allPlayerNames = GetPlayerList()
+    local numPlayers = table.getn(allPlayerNames)
     
-    btn:SetScript("OnClick", function()
-        selectedPlayer = this.text:GetText()
-        playerText:SetText(selectedPlayer)
-        playerListFrame:Hide()
-    end)
+    -- Adjust scroll child height
+    local contentHeight = numPlayers * 20
+    if contentHeight < 180 then contentHeight = 180 end
+    scrollChild:SetHeight(contentHeight)
     
-    btn:Hide()
-    playerButtons[i] = btn
+    -- Update scroll bar
+    local maxScroll = contentHeight - 180
+    if maxScroll < 0 then maxScroll = 0 end
+    scrollBar:SetMinMaxValues(0, maxScroll)
+    scrollBar:SetValue(0)
+    
+    -- Create or update buttons
+    for i = 1, numPlayers do
+        if not playerButtons[i] then
+            local btn = CreateFrame("Button", "SC_PlayerBtn"..i, scrollChild)
+            btn:SetWidth(160)
+            btn:SetHeight(20)
+            btn:SetPoint("TOPLEFT", 5, -((i-1)*20))
+            
+            local btnText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            btnText:SetPoint("LEFT", 5, 0)
+            btn.text = btnText
+            
+            btn:SetScript("OnClick", function()
+                selectedPlayer = this.text:GetText()
+                playerText:SetText(selectedPlayer)
+                playerListFrame:Hide()
+            end)
+            
+            playerButtons[i] = btn
+        else
+            playerButtons[i]:SetPoint("TOPLEFT", 5, -((i-1)*20))
+        end
+        
+        playerButtons[i].text:SetText(allPlayerNames[i])
+        playerButtons[i]:Show()
+    end
 end
 
 local selectPlayerBtn = CreateFrame("Button", "SC_SelectPlayer", frame, "UIPanelButtonTemplate")
@@ -165,15 +295,7 @@ selectPlayerBtn:SetScript("OnClick", function()
     if playerListFrame:IsShown() then
         playerListFrame:Hide()
     else
-        local players = GetPlayerList()
-        for i = 1, 10 do
-            if i <= table.getn(players) then
-                playerButtons[i].text:SetText(players[i])
-                playerButtons[i]:Show()
-            else
-                playerButtons[i]:Hide()
-            end
-        end
+        UpdatePlayerList()
         playerListFrame:Show()
     end
 end)
@@ -194,31 +316,55 @@ amountBox:SetNumeric(true)
 amountBox:SetText("1")
 
 -----------------------------------
--- Top 15 List
+-- Top Holders List
 -----------------------------------
-local top15Label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-top15Label:SetPoint("TOPLEFT", 240, -50)
-top15Label:SetText("Top 15 Players")
+local topLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+topLabel:SetPoint("TOPLEFT", 240, -50)
+topLabel:SetText("Top Holders")
 
-local top15Frame = CreateFrame("Frame", "SC_Top15Frame", frame)
-top15Frame:SetWidth(160)
-top15Frame:SetHeight(320)
-top15Frame:SetPoint("TOPLEFT", 240, -75)
-top15Frame:SetBackdrop({
+local topFrame = CreateFrame("Frame", "SC_TopFrame", frame)
+topFrame:SetWidth(160)
+topFrame:SetHeight(320)
+topFrame:SetPoint("TOPLEFT", 240, -75)
+topFrame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
     tile = true, tileSize = 16, edgeSize = 16,
     insets = { left = 4, right = 4, top = 4, bottom = 4 }
 })
 
-local top15Lines = {}
-for i = 1, 15 do
-    local line = top15Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    line:SetPoint("TOPLEFT", 8, -8 - (i-1)*20)
-    line:SetText("")
-    line:SetJustifyH("LEFT")
-    top15Lines[i] = line
-end
+-- Scroll frame for top holders
+local topScrollFrame = CreateFrame("ScrollFrame", "SC_TopScrollFrame", topFrame)
+topScrollFrame:SetWidth(130)
+topScrollFrame:SetHeight(300)
+topScrollFrame:SetPoint("TOPLEFT", 8, -8)
+
+-- Scroll child for top holders
+local topScrollChild = CreateFrame("Frame", "SC_TopScrollChild", topScrollFrame)
+topScrollChild:SetWidth(130)
+topScrollChild:SetHeight(1)
+topScrollFrame:SetScrollChild(topScrollChild)
+
+-- Scroll bar for top holders
+local topScrollBar = CreateFrame("Slider", "SC_TopScrollBar", topScrollFrame)
+topScrollBar:SetPoint("TOPRIGHT", topFrame, "TOPRIGHT", -5, -15)
+topScrollBar:SetPoint("BOTTOMRIGHT", topFrame, "BOTTOMRIGHT", -5, 15)
+topScrollBar:SetWidth(16)
+topScrollBar:SetBackdrop({
+    bgFile = "Interface\\Buttons\\UI-SliderBar-Background",
+    edgeFile = "Interface\\Buttons\\UI-SliderBar-Border",
+    tile = true, tileSize = 8, edgeSize = 8,
+    insets = { left = 3, right = 3, top = 6, bottom = 6 }
+})
+topScrollBar:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+topScrollBar:SetMinMaxValues(0, 1)
+topScrollBar:SetValueStep(1)
+topScrollBar:SetValue(0)
+topScrollBar:SetScript("OnValueChanged", function()
+    topScrollFrame:SetVerticalScroll(this:GetValue())
+end)
+
+local topLines = {}
 
 local function UpdateTop15()
     local list = {}
@@ -235,12 +381,37 @@ local function UpdateTop15()
         return false
     end)
     
-    for i = 1, 15 do
-        if i <= table.getn(list) then
-            top15Lines[i]:SetText(i..". "..list[i].name.." - "..list[i].coins)
+    local numHolders = table.getn(list)
+    
+    -- Adjust scroll child height
+    local contentHeight = numHolders * 20
+    if contentHeight < 300 then contentHeight = 300 end
+    topScrollChild:SetHeight(contentHeight)
+    
+    -- Update scroll bar
+    local maxScroll = contentHeight - 300
+    if maxScroll < 0 then maxScroll = 0 end
+    topScrollBar:SetMinMaxValues(0, maxScroll)
+    topScrollBar:SetValue(0)
+    
+    -- Clear old lines
+    for i = 1, table.getn(topLines) do
+        topLines[i]:Hide()
+    end
+    
+    -- Create or update lines
+    for i = 1, numHolders do
+        if not topLines[i] then
+            local line = topScrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            line:SetPoint("TOPLEFT", 5, -((i-1)*20))
+            line:SetJustifyH("LEFT")
+            topLines[i] = line
         else
-            top15Lines[i]:SetText("")
+            topLines[i]:SetPoint("TOPLEFT", 5, -((i-1)*20))
         end
+        
+        topLines[i]:SetText(i..". "..list[i].name.." - "..list[i].coins)
+        topLines[i]:Show()
     end
 end
 
@@ -311,7 +482,7 @@ chatBtn:SetPoint("LEFT", chatText, "RIGHT", 5, 0)
 chatBtn:SetText("Change")
 
 local chatIndex = 1
-local chatChannels = { "GUILD", "PARTY", "RAID" }
+local chatChannels = { "GUILD", "PARTY", "RAID", "SAY", "WHISPER" }
 
 chatBtn:SetScript("OnClick", function()
     chatIndex = chatIndex + 1
@@ -346,13 +517,23 @@ topBtn:SetScript("OnClick", function()
         return false
     end)
 
-    SendChatMessage("Top Sprindu Coin Holders:", chatTarget)
-
     local maxEntries = 10
     if table.getn(list) < 10 then maxEntries = table.getn(list) end
 
-    for i = 1, maxEntries do
-        SendChatMessage(i..". "..list[i].name.." - "..list[i].coins, chatTarget)
+    if chatTarget == "WHISPER" then
+        if SprinduCoin.lastWhisper and SprinduCoin.lastWhisper ~= "" then
+            SendChatMessage("Top Sprindu Coin Holders:", "WHISPER", nil, SprinduCoin.lastWhisper)
+            for i = 1, maxEntries do
+                SendChatMessage(i..". "..list[i].name.." - "..list[i].coins, "WHISPER", nil, SprinduCoin.lastWhisper)
+            end
+        else
+            statusText:SetText("No whisper target set. Type a name in chat.")
+        end
+    else
+        SendChatMessage("Top Sprindu Coin Holders:", chatTarget)
+        for i = 1, maxEntries do
+            SendChatMessage(i..". "..list[i].name.." - "..list[i].coins, chatTarget)
+        end
     end
 end)
 
@@ -392,11 +573,19 @@ eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
 eventFrame:RegisterEvent("PLAYER_QUITING")
+eventFrame:RegisterEvent("CHAT_MSG_WHISPER")
+eventFrame:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
 eventFrame:SetScript("OnEvent", function()
     if event == "ADDON_LOADED" and arg1 == "SprinduCoin" then
         LoadData()
         UpdateTop15()
     elseif event == "PLAYER_LOGOUT" or event == "PLAYER_LEAVING_WORLD" or event == "PLAYER_QUITING" then
         SaveData()
+    elseif event == "CHAT_MSG_WHISPER" then
+        -- Incoming whisper
+        SprinduCoin.lastWhisper = arg2
+    elseif event == "CHAT_MSG_WHISPER_INFORM" then
+        -- Outgoing whisper
+        SprinduCoin.lastWhisper = arg2
     end
 end)
