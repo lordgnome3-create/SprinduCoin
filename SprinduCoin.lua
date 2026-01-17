@@ -1,48 +1,48 @@
 -----------------------------------
--- SprinduCoin
+-- SecretSpiderCoin
 -----------------------------------
-SprinduCoin = {}
-SprinduCoin.coins = {}
+SecretSpiderCoin = {}
+SecretSpiderCoin.coins = {}
 
 -----------------------------------
 -- Saved Variables
 -----------------------------------
 local function LoadData()
-    if SprinduCoinDB then
-        SprinduCoin.coins = SprinduCoinDB
+    if SecretSpiderCoinDB then
+        SecretSpiderCoin.coins = SecretSpiderCoinDB
     end
 end
 
 local function SaveData()
-    SprinduCoinDB = SprinduCoin.coins
+    SecretSpiderCoinDB = SecretSpiderCoin.coins
 end
 
 -----------------------------------
 -- Utility Functions
 -----------------------------------
 local function GetCoins(name)
-    if not SprinduCoin.coins[name] then
-        SprinduCoin.coins[name] = 0
+    if not SecretSpiderCoin.coins[name] then
+        SecretSpiderCoin.coins[name] = 0
     end
-    return SprinduCoin.coins[name]
+    return SecretSpiderCoin.coins[name]
 end
 
 local function AddCoins(name, amount)
-    SprinduCoin.coins[name] = GetCoins(name) + amount
+    SecretSpiderCoin.coins[name] = GetCoins(name) + amount
     SaveData()
 end
 
 local function RemoveCoins(name, amount)
     local newValue = GetCoins(name) - amount
     if newValue < 0 then newValue = 0 end
-    SprinduCoin.coins[name] = newValue
+    SecretSpiderCoin.coins[name] = newValue
     SaveData()
 end
 
 -----------------------------------
 -- Main Frame
 -----------------------------------
-local frame = CreateFrame("Frame", "SprinduCoinFrame", UIParent)
+local frame = CreateFrame("Frame", "SecretSpiderCoinFrame", UIParent)
 frame:SetWidth(420)
 frame:SetHeight(550)
 frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
@@ -65,7 +65,7 @@ frame:Hide()
 -----------------------------------
 local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 title:SetPoint("TOP", 0, -12)
-title:SetText("Sprindu Coin")
+title:SetText("Secret Spider Coin")
 
 -----------------------------------
 -- Close Button
@@ -88,41 +88,109 @@ playerText:SetText("None Selected")
 
 local function GetPlayerList()
     local list = {}
+    
+    -- First, add all players who have coins
+    for name, coins in pairs(SecretSpiderCoin.coins) do
+        if type(coins) == "number" and coins > 0 then
+            table.insert(list, name)
+        end
+    end
 
-    if GetNumRaidMembers() > 0 then
-        for i = 1, GetNumRaidMembers() do
-            local name = GetRaidRosterInfo(i)
-            if name then
-                table.insert(list, name)
+    -- Add friends list
+    for i = 1, GetNumFriends() do
+        local fname = GetFriendInfo(i)
+        if fname then
+            local alreadyInList = false
+            for j = 1, table.getn(list) do
+                if list[j] == fname then
+                    alreadyInList = true
+                    break
+                end
             end
-        end
-
-    elseif GetNumPartyMembers() > 0 then
-        local pname = UnitName("player")
-        if pname then
-            table.insert(list, pname)
-        end
-
-        for i = 1, GetNumPartyMembers() do
-            local member = UnitName("party"..i)
-            if member then
-                table.insert(list, member)
-            end
-        end
-
-    elseif IsInGuild() then
-        for i = 1, GetNumGuildMembers() do
-            local gname = GetGuildRosterInfo(i)
-            if gname then
-                table.insert(list, gname)
+            if not alreadyInList then
+                table.insert(list, fname)
             end
         end
     end
 
+    -- Add guild members
+    if IsInGuild() then
+        for i = 1, GetNumGuildMembers() do
+            local gname = GetGuildRosterInfo(i)
+            if gname then
+                local alreadyInList = false
+                for j = 1, table.getn(list) do
+                    if list[j] == gname then
+                        alreadyInList = true
+                        break
+                    end
+                end
+                if not alreadyInList then
+                    table.insert(list, gname)
+                end
+            end
+        end
+    end
+
+    -- Add players from raid
+    if GetNumRaidMembers() > 0 then
+        for i = 1, GetNumRaidMembers() do
+            local name = GetRaidRosterInfo(i)
+            if name then
+                local alreadyInList = false
+                for j = 1, table.getn(list) do
+                    if list[j] == name then
+                        alreadyInList = true
+                        break
+                    end
+                end
+                if not alreadyInList then
+                    table.insert(list, name)
+                end
+            end
+        end
+
+    elseif GetNumPartyMembers() > 0 then
+        -- Add yourself
+        local pname = UnitName("player")
+        if pname then
+            local alreadyInList = false
+            for j = 1, table.getn(list) do
+                if list[j] == pname then
+                    alreadyInList = true
+                    break
+                end
+            end
+            if not alreadyInList then
+                table.insert(list, pname)
+            end
+        end
+
+        -- Add party members
+        for i = 1, GetNumPartyMembers() do
+            local member = UnitName("party"..i)
+            if member then
+                local alreadyInList = false
+                for j = 1, table.getn(list) do
+                    if list[j] == member then
+                        alreadyInList = true
+                        break
+                    end
+                end
+                if not alreadyInList then
+                    table.insert(list, member)
+                end
+            end
+        end
+    end
+    
+    -- Sort the list alphabetically
+    table.sort(list)
+
     return list
 end
 
-local playerListFrame = CreateFrame("Frame", "SC_PlayerList", frame)
+local playerListFrame = CreateFrame("Frame", "SSC_PlayerList", frame)
 playerListFrame:SetWidth(200)
 playerListFrame:SetHeight(150)
 playerListFrame:SetPoint("TOPLEFT", 20, -80)
@@ -136,7 +204,7 @@ playerListFrame:Hide()
 
 local playerButtons = {}
 for i = 1, 10 do
-    local btn = CreateFrame("Button", "SC_PlayerBtn"..i, playerListFrame)
+    local btn = CreateFrame("Button", "SSC_PlayerBtn"..i, playerListFrame)
     btn:SetWidth(180)
     btn:SetHeight(20)
     btn:SetPoint("TOPLEFT", 10, -10 - (i-1)*20)
@@ -155,7 +223,7 @@ for i = 1, 10 do
     playerButtons[i] = btn
 end
 
-local selectPlayerBtn = CreateFrame("Button", "SC_SelectPlayer", frame, "UIPanelButtonTemplate")
+local selectPlayerBtn = CreateFrame("Button", "SSC_SelectPlayer", frame, "UIPanelButtonTemplate")
 selectPlayerBtn:SetWidth(100)
 selectPlayerBtn:SetHeight(22)
 selectPlayerBtn:SetPoint("LEFT", playerText, "RIGHT", 10, 0)
@@ -185,7 +253,7 @@ local amountLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 amountLabel:SetPoint("TOPLEFT", 20, -410)
 amountLabel:SetText("Amount:")
 
-local amountBox = CreateFrame("EditBox", "SC_AmountBox", frame, "InputBoxTemplate")
+local amountBox = CreateFrame("EditBox", "SSC_AmountBox", frame, "InputBoxTemplate")
 amountBox:SetWidth(60)
 amountBox:SetHeight(20)
 amountBox:SetPoint("LEFT", amountLabel, "RIGHT", 10, 0)
@@ -200,7 +268,7 @@ local top15Label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 top15Label:SetPoint("TOPLEFT", 240, -50)
 top15Label:SetText("Top 15 Players")
 
-local top15Frame = CreateFrame("Frame", "SC_Top15Frame", frame)
+local top15Frame = CreateFrame("Frame", "SSC_Top15Frame", frame)
 top15Frame:SetWidth(160)
 top15Frame:SetHeight(320)
 top15Frame:SetPoint("TOPLEFT", 240, -75)
@@ -222,7 +290,7 @@ end
 
 local function UpdateTop15()
     local list = {}
-    for name, coins in pairs(SprinduCoin.coins) do
+    for name, coins in pairs(SecretSpiderCoin.coins) do
         if type(coins) == "number" then
             table.insert(list, {name=name, coins=coins})
         end
@@ -257,7 +325,7 @@ statusText:SetText("")
 -----------------------------------
 -- Add / Remove Buttons
 -----------------------------------
-local addBtn = CreateFrame("Button", "SC_AddBtn", frame, "UIPanelButtonTemplate")
+local addBtn = CreateFrame("Button", "SSC_AddBtn", frame, "UIPanelButtonTemplate")
 addBtn:SetWidth(80)
 addBtn:SetHeight(22)
 addBtn:SetPoint("TOPLEFT", 20, -460)
@@ -274,7 +342,7 @@ addBtn:SetScript("OnClick", function()
     end
 end)
 
-local removeBtn = CreateFrame("Button", "SC_RemoveBtn", frame, "UIPanelButtonTemplate")
+local removeBtn = CreateFrame("Button", "SSC_RemoveBtn", frame, "UIPanelButtonTemplate")
 removeBtn:SetWidth(80)
 removeBtn:SetHeight(22)
 removeBtn:SetPoint("LEFT", addBtn, "RIGHT", 10, 0)
@@ -304,7 +372,7 @@ local chatText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 chatText:SetPoint("LEFT", chatLabel, "RIGHT", 5, 0)
 chatText:SetText("GUILD")
 
-local chatBtn = CreateFrame("Button", "SC_ChatBtn", frame, "UIPanelButtonTemplate")
+local chatBtn = CreateFrame("Button", "SSC_ChatBtn", frame, "UIPanelButtonTemplate")
 chatBtn:SetWidth(70)
 chatBtn:SetHeight(22)
 chatBtn:SetPoint("LEFT", chatText, "RIGHT", 5, 0)
@@ -325,7 +393,7 @@ end)
 -----------------------------------
 -- Top 10 Button
 -----------------------------------
-local topBtn = CreateFrame("Button", "SC_TopBtn", frame, "UIPanelButtonTemplate")
+local topBtn = CreateFrame("Button", "SSC_TopBtn", frame, "UIPanelButtonTemplate")
 topBtn:SetWidth(120)
 topBtn:SetHeight(22)
 topBtn:SetPoint("TOP", 0, -520)
@@ -333,7 +401,7 @@ topBtn:SetText("Say Top 10")
 
 topBtn:SetScript("OnClick", function()
     local list = {}
-    for name, coins in pairs(SprinduCoin.coins) do
+    for name, coins in pairs(SecretSpiderCoin.coins) do
         if type(coins) == "number" then
             table.insert(list, {name=name, coins=coins})
         end
@@ -346,7 +414,7 @@ topBtn:SetScript("OnClick", function()
         return false
     end)
 
-    SendChatMessage("Top Sprindu Coin Holders:", chatTarget)
+    SendChatMessage("Top Secret Spider Coin Holders:", chatTarget)
 
     local maxEntries = 10
     if table.getn(list) < 10 then maxEntries = table.getn(list) end
@@ -359,7 +427,7 @@ end)
 -----------------------------------
 -- Minimap Button
 -----------------------------------
-local mini = CreateFrame("Button", "SC_MinimapButton", Minimap)
+local mini = CreateFrame("Button", "SSC_MinimapButton", Minimap)
 mini:SetWidth(32)
 mini:SetHeight(32)
 mini:SetPoint("TOPLEFT", Minimap, "TOPLEFT", -10, 10)
@@ -377,8 +445,8 @@ end)
 -----------------------------------
 -- Slash Command
 -----------------------------------
-SLASH_SPRINDUCOIN1 = "/sc"
-SlashCmdList["SPRINDUCOIN"] = function(msg)
+SLASH_SECRETSPIDERCOIN1 = "/ssc"
+SlashCmdList["SECRETSPIDERCOIN"] = function(msg)
     if msg == "show" then
         frame:Show()
     end
@@ -393,7 +461,7 @@ eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
 eventFrame:RegisterEvent("PLAYER_QUITING")
 eventFrame:SetScript("OnEvent", function()
-    if event == "ADDON_LOADED" and arg1 == "SprinduCoin" then
+    if event == "ADDON_LOADED" and arg1 == "SecretSpiderCoin" then
         LoadData()
         UpdateTop15()
     elseif event == "PLAYER_LOGOUT" or event == "PLAYER_LEAVING_WORLD" or event == "PLAYER_QUITING" then
