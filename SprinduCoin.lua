@@ -567,7 +567,7 @@ end)
 local topBtn = CreateFrame("Button", "SC_TopBtn", frame, "UIPanelButtonTemplate")
 topBtn:SetWidth(120)
 topBtn:SetHeight(22)
-topBtn:SetPoint("TOP", 0, -520)
+topBtn:SetPoint("TOP", -65, -520)
 topBtn:SetText("Say Top 10")
 
 topBtn:SetScript("OnClick", function()
@@ -602,6 +602,35 @@ topBtn:SetScript("OnClick", function()
         for i = 1, maxEntries do
             SendChatMessage(i..". "..list[i].name.." - "..list[i].coins, chatTarget)
         end
+    end
+end)
+
+-----------------------------------
+-- Say Player Balance Button
+-----------------------------------
+local balanceBtn = CreateFrame("Button", "SC_BalanceBtn", frame, "UIPanelButtonTemplate")
+balanceBtn:SetWidth(120)
+balanceBtn:SetHeight(22)
+balanceBtn:SetPoint("TOP", 65, -520)
+balanceBtn:SetText("Say Balance")
+
+balanceBtn:SetScript("OnClick", function()
+    if selectedPlayer then
+        local currentCoins = GetCoins(selectedPlayer)
+        local message = selectedPlayer.." has "..currentCoins.." SprinduCoin"
+        local currentChat = chatText:GetText()
+        
+        if currentChat == "WHISPER" then
+            if SprinduCoin.lastWhisper and SprinduCoin.lastWhisper ~= "" then
+                SendChatMessage(message, "WHISPER", nil, SprinduCoin.lastWhisper)
+            else
+                statusText:SetText("No whisper target set")
+            end
+        else
+            SendChatMessage(message, currentChat)
+        end
+    else
+        statusText:SetText("Please select a player first")
     end
 end)
 
