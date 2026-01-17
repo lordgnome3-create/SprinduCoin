@@ -480,14 +480,16 @@ addAnnounceBtn:SetScript("OnClick", function()
         
         -- Announce to chat
         local message = selectedPlayer.." has gained "..amt.." SprinduCoin"
-        if chatTarget == "WHISPER" then
+        local currentChat = chatText:GetText()
+        
+        if currentChat == "WHISPER" then
             if SprinduCoin.lastWhisper and SprinduCoin.lastWhisper ~= "" then
                 SendChatMessage(message, "WHISPER", nil, SprinduCoin.lastWhisper)
             else
                 statusText:SetText("No whisper target set")
             end
         else
-            SendChatMessage(message, chatTarget)
+            SendChatMessage(message, currentChat)
         end
     else
         statusText:SetText("Please select a player first")
@@ -509,14 +511,16 @@ removeAnnounceBtn:SetScript("OnClick", function()
         
         -- Announce to chat
         local message = selectedPlayer.." has lost "..amt.." SprinduCoin"
-        if chatTarget == "WHISPER" then
+        local currentChat = chatText:GetText()
+        
+        if currentChat == "WHISPER" then
             if SprinduCoin.lastWhisper and SprinduCoin.lastWhisper ~= "" then
                 SendChatMessage(message, "WHISPER", nil, SprinduCoin.lastWhisper)
             else
                 statusText:SetText("No whisper target set")
             end
         else
-            SendChatMessage(message, chatTarget)
+            SendChatMessage(message, currentChat)
         end
     else
         statusText:SetText("Please select a player first")
