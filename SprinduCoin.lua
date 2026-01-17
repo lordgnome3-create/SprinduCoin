@@ -463,6 +463,38 @@ removeBtn:SetScript("OnClick", function()
 end)
 
 -----------------------------------
+-- Chat Target Selection
+-----------------------------------
+local chatTarget = "GUILD"
+
+local chatLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+chatLabel:SetPoint("LEFT", removeBtn, "RIGHT", 20, 0)
+chatLabel:SetText("Chat:")
+
+local chatText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+chatText:SetPoint("LEFT", chatLabel, "RIGHT", 5, 0)
+chatText:SetText("GUILD")
+
+local chatBtn = CreateFrame("Button", "SC_ChatBtn", frame, "UIPanelButtonTemplate")
+chatBtn:SetWidth(70)
+chatBtn:SetHeight(22)
+chatBtn:SetPoint("LEFT", chatText, "RIGHT", 5, 0)
+chatBtn:SetText("Change")
+
+local chatIndex = 1
+local chatChannels = { "GUILD", "PARTY", "RAID", "SAY", "WHISPER" }
+
+chatBtn:SetScript("OnClick", function()
+    chatIndex = chatIndex + 1
+    if chatIndex > table.getn(chatChannels) then
+        chatIndex = 1
+    end
+    chatTarget = chatChannels[chatIndex]
+    chatText:SetText(chatTarget)
+    DEFAULT_CHAT_FRAME:AddMessage("Chat channel changed to: "..chatTarget)
+end)
+
+-----------------------------------
 -- Add/Announce & Remove/Announce Buttons
 -----------------------------------
 local addAnnounceBtn = CreateFrame("Button", "SC_AddAnnounceBtn", frame, "UIPanelButtonTemplate")
@@ -525,38 +557,6 @@ removeAnnounceBtn:SetScript("OnClick", function()
     else
         statusText:SetText("Please select a player first")
     end
-end)
-
------------------------------------
--- Chat Target Selection
------------------------------------
-local chatTarget = "GUILD"
-
-local chatLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-chatLabel:SetPoint("LEFT", removeBtn, "RIGHT", 20, 0)
-chatLabel:SetText("Chat:")
-
-local chatText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-chatText:SetPoint("LEFT", chatLabel, "RIGHT", 5, 0)
-chatText:SetText("GUILD")
-
-local chatBtn = CreateFrame("Button", "SC_ChatBtn", frame, "UIPanelButtonTemplate")
-chatBtn:SetWidth(70)
-chatBtn:SetHeight(22)
-chatBtn:SetPoint("LEFT", chatText, "RIGHT", 5, 0)
-chatBtn:SetText("Change")
-
-local chatIndex = 1
-local chatChannels = { "GUILD", "PARTY", "RAID", "SAY", "WHISPER" }
-
-chatBtn:SetScript("OnClick", function()
-    chatIndex = chatIndex + 1
-    if chatIndex > table.getn(chatChannels) then
-        chatIndex = 1
-    end
-    chatTarget = chatChannels[chatIndex]
-    chatText:SetText(chatTarget)
-    DEFAULT_CHAT_FRAME:AddMessage("Chat channel changed to: "..chatTarget)
 end)
 
 -----------------------------------
