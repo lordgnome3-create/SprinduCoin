@@ -507,11 +507,12 @@ addAnnounceBtn:SetScript("OnClick", function()
     if selectedPlayer then
         local amt = tonumber(amountBox:GetText()) or 0
         AddCoins(selectedPlayer, amt)
-        statusText:SetText(selectedPlayer.." has "..GetCoins(selectedPlayer).." (+ "..amt..")")
+        local newTotal = GetCoins(selectedPlayer)
+        statusText:SetText(selectedPlayer.." has "..newTotal.." (+ "..amt..")")
         UpdateTop15()
         
         -- Announce to chat
-        local message = selectedPlayer.." has gained "..amt.." SprinduCoin"
+        local message = selectedPlayer.." has gained "..amt.." SprinduCoin ("..newTotal.." total)"
         local currentChat = chatText:GetText()
         
         if currentChat == "WHISPER" then
@@ -538,11 +539,12 @@ removeAnnounceBtn:SetScript("OnClick", function()
     if selectedPlayer then
         local amt = tonumber(amountBox:GetText()) or 0
         RemoveCoins(selectedPlayer, amt)
-        statusText:SetText(selectedPlayer.." has "..GetCoins(selectedPlayer).." (- "..amt..")")
+        local newTotal = GetCoins(selectedPlayer)
+        statusText:SetText(selectedPlayer.." has "..newTotal.." (- "..amt..")")
         UpdateTop15()
         
         -- Announce to chat
-        local message = selectedPlayer.." has lost "..amt.." SprinduCoin"
+        local message = selectedPlayer.." has lost "..amt.." SprinduCoin ("..newTotal.." total)"
         local currentChat = chatText:GetText()
         
         if currentChat == "WHISPER" then
